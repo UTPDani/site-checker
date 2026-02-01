@@ -59,7 +59,7 @@ class CheckerEngine:
             match = re.search(r'value=["\']+([^"\']+)["\']+.*?name=["\']login[_token]', html, re.I)
         csrf = match.group(1) if match else ""
 
-            data = {"email": email, "password": pwd}, "login[_token]": csrf}
+            data = {"email": email, "password": pwd, "login[_token]": csrf}
             
             async with session.post("https://nl.forum.proximus.be/member/login", data=data, proxy=proxy, timeout=timeout, allow_redirects=True) as r:
                 try:
